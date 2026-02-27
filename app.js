@@ -1,45 +1,79 @@
 // ===== PATHWISE APP.JS =====
 
 // ---- DATA STORE ----
-const AppState = {
-  student: { name: 'Arjun Kumar', initials: 'AK', stream: 'Engineering (B.Tech)', year: 'Second Year', goal: 'Score 85%+ this semester' },
-  streak: 14,
-  subjects: [
-    { name: 'Mathematics', icon: '📐', mastery: 82, hours: 12, color: '#6C63FF' },
-    { name: 'Physics', icon: '⚛️', mastery: 65, hours: 9, color: '#FF6584' },
-    { name: 'Computer Sc.', icon: '💻', mastery: 91, hours: 15, color: '#43D9B6' },
-    { name: 'Chemistry', icon: '🧪', mastery: 55, hours: 7, color: '#FFB347' },
-  ],
-  todayTasks: [
-    { name: 'Thermodynamics – Laws 1 & 2', subject: 'Physics', duration: '45 min', done: false },
-    { name: 'Integration by Parts', subject: 'Mathematics', duration: '30 min', done: true },
-    { name: 'Linked Lists Practice', subject: 'CS', duration: '60 min', done: false },
-    { name: 'Organic Reaction Mechanisms', subject: 'Chemistry', duration: '40 min', done: false },
-  ],
+const DEFAULT_STATE = {
+  student: { name: 'Student Name', initials: 'SN', stream: 'Not set', year: 'Not set', goal: 'Not set' },
+  streak: 0,
+  subjects: [],
+  todayTasks: [],
   nudges: [
-    'You perform best between 7–9 PM. Thermodynamics is your weakest topic — schedule a session tonight!',
-    'You haven\'t revised Chemistry in 3 days. A 20-min review session can prevent 40% forgetting!',
-    '🎯 You\'re 3 sessions away from Excellent exam readiness. Push through this week!',
-    'Your CS mastery jumped 8% this week. Keep that momentum going!',
-    'Spaced repetition tip: Review your Physics notes from 3 days ago right now for maximum retention.',
+    'Welcome! Add some tasks and your subjects to get started.',
+    'Update your profile in the settings.'
   ],
   plannerSessions: {
-    Mon: [{ s: 'Mathematics', c: '#6C63FF' }, { s: 'Physics', c: '#FF6584' }],
-    Tue: [{ s: 'CS', c: '#43D9B6' }],
-    Wed: [{ s: 'Chemistry', c: '#FFB347' }, { s: 'Mathematics', c: '#6C63FF' }],
-    Thu: [{ s: 'Physics', c: '#FF6584' }],
-    Fri: [{ s: 'CS', c: '#43D9B6' }, { s: 'Chemistry', c: '#FFB347' }],
-    Sat: [{ s: 'Mathematics', c: '#6C63FF' }, { s: 'CS', c: '#43D9B6' }],
-    Sun: [],
+    Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
   },
-  testHistory: [
-    { subject: 'Mathematics', score: 78, questions: 10, date: 'Feb 25' },
-    { subject: 'Physics', score: 62, questions: 10, date: 'Feb 22' },
-    { subject: 'CS', score: 94, questions: 15, date: 'Feb 20' },
-  ],
+  testHistory: [],
   usedQuestions: { math: [], physics: [], cs: [], chemistry: [] },
   chatMessages: [],
 };
+
+let AppState = JSON.parse(localStorage.getItem('pathwise_state'));
+if (!AppState) {
+  AppState = DEFAULT_STATE;
+  saveState();
+}
+
+function saveState() {
+  localStorage.setItem('pathwise_state', JSON.stringify(AppState));
+}
+
+function clearAllData() {
+  if (confirm('Are you sure you want to clear all data?')) {
+    localStorage.removeItem('pathwise_state');
+    location.reload();
+  }
+}
+
+function addTask() {
+  const name = document.getElementById('new-task-name').value.trim();
+  const sub = document.getElementById('new-task-subject').value.trim() || 'General';
+  const dur = document.getElementById('new-task-duration').value.trim() || '30m';
+  if (!name) return;
+
+  AppState.todayTasks.push({ name, subject: sub, duration: dur, done: false });
+  document.getElementById('new-task-name').value = '';
+  document.getElementById('new-task-subject').value = '';
+  document.getElementById('new-task-duration').value = '';
+  saveState();
+  renderDashboard();
+}
+
+function removeTask(i) {
+  AppState.todayTasks.splice(i, 1);
+  saveState();
+  renderDashboard();
+}
+
+function addSubject() {
+  const name = prompt('Enter subject name:');
+  if (!name) return;
+  const icon = prompt('Enter an emoji icon for the subject:') || '📚';
+  const colorsList = ['#6C63FF', '#43D9B6', '#FFB347', '#FF6584', '#9b59b6', '#e67e22', '#1abc9c', '#e74c3c'];
+  const color = colorsList[Math.floor(Math.random() * colorsList.length)];
+  AppState.subjects.push({ name, icon, mastery: 0, hours: 0, color });
+  saveState();
+  renderDashboard();
+}
+
+function removeSubject(i) {
+  if (confirm('Remove subject?')) {
+    AppState.subjects.splice(i, 1);
+    saveState();
+    renderDashboard();
+  }
+}
+
 
 // ---- NAVIGATION ----
 function navigateTo(page) {
@@ -134,12 +168,18 @@ function renderDashboard() {
         <div class="task-meta">${t.subject}</div>
       </div>
       <div class="task-duration">${t.duration}</div>
+      <div style="cursor:pointer;color:var(--error); margin-left: 8px;" onclick="removeTask(${i})" title="Delete">
+        <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+      </div>
     </div>`).join('');
   // Mastery
   const ml = document.getElementById('mastery-list');
-  ml.innerHTML = AppState.subjects.map(s => `
+  ml.innerHTML = AppState.subjects.map((s, i) => `
     <div class="mastery-item">
-      <div class="mastery-header"><span class="mastery-name">${s.icon} ${s.name}</span></div>
+      <div class="mastery-header">
+        <span class="mastery-name">${s.icon} ${s.name}</span>
+        <span class="material-symbols-outlined" style="font-size:14px;cursor:pointer;opacity:0.6;margin-left:auto;" onclick="removeSubject(${i})">delete</span>
+      </div>
       ${bar(s.mastery, s.color)}
     </div>`).join('');
   // DNA preview
@@ -153,14 +193,17 @@ function renderDashboard() {
 
 function toggleTask(i) {
   AppState.todayTasks[i].done = !AppState.todayTasks[i].done;
+  saveState();
   const done = AppState.todayTasks.filter(t => t.done).length;
   document.getElementById('stat-goals').textContent = `${done}/${AppState.todayTasks.length}`;
   renderDashboard();
 }
 
 function refreshNudge() {
+  if (AppState.nudges.length === 0) return;
   const n = AppState.nudges[Math.floor(Math.random() * AppState.nudges.length)];
-  document.getElementById('nudge-message').textContent = n;
+  const nElement = document.getElementById('nudge-message');
+  if (nElement) nElement.textContent = n;
 }
 
 // ---- STUDY DNA ----
@@ -573,6 +616,7 @@ function showResults() {
   });
 
   AppState.testHistory.unshift({ subject: testState.subject, score: pct, questions: testState.questions.length, date: 'Today' });
+  saveState();
 }
 
 function reviewAnswers() { document.getElementById('results-review-panel').scrollIntoView({ behavior: 'smooth' }); }
@@ -601,6 +645,7 @@ function renderPlanner() {
 function removeSession(day, index) {
   if (AppState.plannerSessions[day]) {
     AppState.plannerSessions[day].splice(index, 1);
+    saveState();
     renderPlanner();
   }
 }
@@ -618,6 +663,7 @@ function addSession() {
 
   if (!AppState.plannerSessions[d]) AppState.plannerSessions[d] = [];
   AppState.plannerSessions[d].push({ s: `${s} (${dur}m)`, c });
+  saveState();
   renderPlanner();
   document.getElementById('add-subject').value = ''; // clear input
 }
@@ -845,10 +891,12 @@ function sendMessage() {
   if (!txt) return;
 
   AppState.chatMessages.push({ role: 'user', text: txt, ts: getTimestamp() });
+  saveState();
   input.value = '';
   renderMessages();
   input.disabled = true;
-  document.querySelector('.chat-send-btn').disabled = true;
+  const sendBtn = document.querySelector('.chat-send-btn');
+  if (sendBtn) sendBtn.disabled = true;
 
   const typId = showTyping();
   const lower = txt.toLowerCase();
@@ -876,6 +924,7 @@ function sendMessage() {
       const match = CHAT_KB.find(r => r.tags.some(k => lower.includes(k)));
       if (match) {
         AppState.chatMessages.push({ role: 'bot', text: match.r, ts: getTimestamp(), followups: match.followups });
+        saveState();
         finishChat();
       } else {
         // 3. Dynamic Knowledge Fetch (Wikipedia API)
@@ -886,12 +935,14 @@ function sendMessage() {
             ts: getTimestamp(),
             followups: [`More about that`, "Related Topics", "Quiz me on this"]
           });
+          saveState();
           finishChat();
         }).catch(() => {
           // Fallback if API fails
           let resp = FALLBACK[fallbackIdx++ % FALLBACK.length];
           let followups = ['Explain Newton\'s Laws', 'Study DNA advice', 'Help me with Math'];
           AppState.chatMessages.push({ role: 'bot', text: resp, ts: getTimestamp(), followups });
+          saveState();
           finishChat();
         });
         return; // Prevent synchronous finishChat
@@ -942,7 +993,7 @@ async function fetchDynamicAnswer(query) {
 }
 
 
-function clearChat() { chatInit = false; AppState.chatMessages = []; renderChat(); }
+function clearChat() { chatInit = false; AppState.chatMessages = []; saveState(); renderChat(); }
 
 // ---- SYLLABUS AI ----
 let extractedSyllabus = [];
@@ -1391,6 +1442,9 @@ function closeVideo() {
 // ---- SETTINGS ----
 function openSettings() {
   document.getElementById('settings-name').value = AppState.student.name;
+  document.getElementById('settings-stream').value = AppState.student.stream || 'Engineering (B.Tech)';
+  document.getElementById('settings-year').value = AppState.student.year || 'First Year';
+  document.getElementById('settings-goal').value = AppState.student.goal || '';
   document.getElementById('settings-modal').classList.remove('hidden');
   document.getElementById('modal-backdrop').classList.remove('hidden');
 }
@@ -1402,10 +1456,14 @@ function saveSettings() {
   const name = document.getElementById('settings-name').value || 'Student';
   AppState.student.name = name;
   AppState.student.initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  AppState.student.stream = document.getElementById('settings-stream').value;
+  AppState.student.year = document.getElementById('settings-year').value;
+  AppState.student.goal = document.getElementById('settings-goal').value;
+
   document.getElementById('nav-student-name').textContent = name;
   document.getElementById('nav-avatar').textContent = AppState.student.initials;
   document.getElementById('dash-student-name').textContent = name.split(' ')[0];
-  document.getElementById('stat-goals').textContent;
+  saveState();
   closeSettings();
   renderDashboard();
 }

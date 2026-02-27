@@ -163,6 +163,13 @@
             <span class="card-badge">AI GENERATED</span>
           </div>
           <div class="today-tasks" id="today-tasks-list"></div>
+          <div class="add-task-form mt-16" style="display:flex;gap:8px;">
+            <input type="text" id="new-task-name" class="input-field" placeholder="Task name..."
+              style="flex:1;min-width:0;">
+            <input type="text" id="new-task-subject" class="input-field" placeholder="Subject" style="width:80px;">
+            <input type="text" id="new-task-duration" class="input-field" placeholder="30m" style="width:60px;">
+            <button class="btn-tonal" onclick="addTask()">Add</button>
+          </div>
           <button class="btn-filled full-width mt-16" onclick="navigateTo('planner')">Detailed Planner</button>
         </div>
 
@@ -170,7 +177,10 @@
         <div class="card-elevated mastery-card">
           <div class="card-header">
             <h3>📚 Subject Mastery</h3>
-            <button class="btn-text" onclick="navigateTo('analytics')">Analytics</button>
+            <div style="display:flex;">
+              <button class="btn-text" onclick="addSubject()" style="padding:0 8px;">+ Add</button>
+              <button class="btn-text" onclick="navigateTo('analytics')">Analytics</button>
+            </div>
           </div>
           <div class="mastery-list" id="mastery-list"></div>
         </div>
@@ -749,6 +759,8 @@
           <input type="text" class="input-field" id="settings-goal" placeholder="e.g. 8.5+ CGPA" />
         </div>
         <button class="btn-filled full-width mt-16" onclick="saveSettings()">Save Configuration</button>
+        <button class="btn-outlined full-width mt-16" onclick="clearAllData()"
+          style="color:var(--error);border-color:var(--error)">Reset All Data</button>
       </div>
     </div>
   </div>
