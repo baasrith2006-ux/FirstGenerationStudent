@@ -18,58 +18,98 @@ const DEFAULT_STATE = {
   chatMessages: [],
 };
 
-let AppState = JSON.parse(localStorage.getItem('pathwise_state'));
-if (!AppState) {
-  AppState = DEFAULT_STATE;
-  saveState();
+let AppState = DEFAULT_STATE;
+
+async function initApp() {
+  try {
+    const user = await API.getUser();
+    const subjects = await API.getSubjects();
+    const tasks = await API.getTasks();
+    const planner = await API.getPlanner();
+    const chat = await API.getChat();
+    const syllabus = await API.getSyllabus();
+    const testHistory = await API.getTestHistory();
+
+    AppState.student = {
+      name: user.name,
+      initials: user.initials,
+      stream: user.stream,
+      year: user.year,
+      goal: user.goal
+    };
+    AppState.streak = user.streak;
+    AppState.subjects = subjects;
+    AppState.todayTasks = tasks;
+    AppState.plannerSessions = planner;
+    AppState.chatMessages = chat;
+    AppState.extractedSyllabus = syllabus;
+    extractedSyllabus = syllabus;
+    AppState.testHistory = testHistory;
+    AppState.usedQuestions = user.usedQuestions || { math: [], physics: [], cs: [], chemistry: [] };
+
+    // Initial renders
+    initNav();
+    renderDashboard();
+  } catch (err) {
+    console.error('Failed to initialize app from backend', err);
+    // Fallback or show error
+  }
+}
+
+function initNav() {
+  document.getElementById('nav-student-name').textContent = AppState.student.name;
+  document.getElementById('nav-avatar').textContent = AppState.student.initials;
 }
 
 function saveState() {
-  localStorage.setItem('pathwise_state', JSON.stringify(AppState));
+  // No-op for now, as we save individually to backend
 }
 
-function clearAllData() {
+async function clearAllData() {
   if (confirm('Are you sure you want to clear all data?')) {
-    localStorage.removeItem('pathwise_state');
+    // Implement full clear in backend if needed
+    localStorage.clear();
     location.reload();
   }
 }
 
-function addTask() {
+async function addTask() {
   const name = document.getElementById('new-task-name').value.trim();
   const sub = document.getElementById('new-task-subject').value.trim() || 'General';
   const dur = document.getElementById('new-task-duration').value.trim() || '30m';
   if (!name) return;
 
-  AppState.todayTasks.push({ name, subject: sub, duration: dur, done: false });
+  const newTask = await API.addTask({ name, subject: sub, duration: dur });
+  AppState.todayTasks.push(newTask);
+
   document.getElementById('new-task-name').value = '';
   document.getElementById('new-task-subject').value = '';
   document.getElementById('new-task-duration').value = '';
-  saveState();
   renderDashboard();
 }
 
-function removeTask(i) {
-  AppState.todayTasks.splice(i, 1);
-  saveState();
+async function removeTask(id) {
+  await API.deleteTask(id);
+  AppState.todayTasks = AppState.todayTasks.filter(t => t._id !== id);
   renderDashboard();
 }
 
-function addSubject() {
+async function addSubject() {
   const name = prompt('Enter subject name:');
   if (!name) return;
   const icon = prompt('Enter an emoji icon for the subject:') || '📚';
   const colorsList = ['#6C63FF', '#43D9B6', '#FFB347', '#FF6584', '#9b59b6', '#e67e22', '#1abc9c', '#e74c3c'];
   const color = colorsList[Math.floor(Math.random() * colorsList.length)];
-  AppState.subjects.push({ name, icon, mastery: 0, hours: 0, color });
-  saveState();
+
+  const newSub = await API.addSubject({ name, icon, mastery: 0, hours: 0, color });
+  AppState.subjects.push(newSub);
   renderDashboard();
 }
 
-function removeSubject(i) {
+async function removeSubject(id) {
   if (confirm('Remove subject?')) {
-    AppState.subjects.splice(i, 1);
-    saveState();
+    await API.deleteSubject(id);
+    AppState.subjects = AppState.subjects.filter(s => s._id !== id);
     renderDashboard();
   }
 }
@@ -160,25 +200,25 @@ function renderDashboard() {
   document.getElementById('dash-student-name').textContent = AppState.student.name.split(' ')[0];
   // Today tasks
   const tl = document.getElementById('today-tasks-list');
-  tl.innerHTML = AppState.todayTasks.map((t, i) => `
+  tl.innerHTML = AppState.todayTasks.map((t) => `
     <div class="task-item">
-      <div class="task-check ${t.done ? 'done' : ''}" onclick="toggleTask(${i})"></div>
+      <div class="task-check ${t.done ? 'done' : ''}" onclick="toggleTask('${t._id}')"></div>
       <div class="task-info">
         <div class="task-name ${t.done ? 'done' : ''}">${t.name}</div>
         <div class="task-meta">${t.subject}</div>
       </div>
       <div class="task-duration">${t.duration}</div>
-      <div style="cursor:pointer;color:var(--error); margin-left: 8px;" onclick="removeTask(${i})" title="Delete">
+      <div style="cursor:pointer;color:var(--error); margin-left: 8px;" onclick="removeTask('${t._id}')" title="Delete">
         <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
       </div>
     </div>`).join('');
   // Mastery
   const ml = document.getElementById('mastery-list');
-  ml.innerHTML = AppState.subjects.map((s, i) => `
+  ml.innerHTML = AppState.subjects.map((s) => `
     <div class="mastery-item">
       <div class="mastery-header">
         <span class="mastery-name">${s.icon} ${s.name}</span>
-        <span class="material-symbols-outlined" style="font-size:14px;cursor:pointer;opacity:0.6;margin-left:auto;" onclick="removeSubject(${i})">delete</span>
+        <span class="material-symbols-outlined" style="font-size:14px;cursor:pointer;opacity:0.6;margin-left:auto;" onclick="removeSubject('${s._id}')">delete</span>
       </div>
       ${bar(s.mastery, s.color)}
     </div>`).join('');
@@ -191,9 +231,11 @@ function renderDashboard() {
   refreshNudge();
 }
 
-function toggleTask(i) {
-  AppState.todayTasks[i].done = !AppState.todayTasks[i].done;
-  saveState();
+async function toggleTask(id) {
+  const updatedTask = await API.toggleTask(id);
+  const taskIdx = AppState.todayTasks.findIndex(t => t._id === id);
+  if (taskIdx !== -1) AppState.todayTasks[taskIdx] = updatedTask;
+
   const done = AppState.todayTasks.filter(t => t.done).length;
   document.getElementById('stat-goals').textContent = `${done}/${AppState.todayTasks.length}`;
   renderDashboard();
@@ -607,16 +649,28 @@ function showResults() {
     return `<div class="answer-review-item ${correct ? 'correct' : 'wrong'}"><div class="answer-qtext">${i + 1}. ${q.q}</div><div class="answer-meta">${correct ? '✅ Correct' : '❌ Wrong'} — Correct: ${q.opts[q.ans]}</div><div class="answer-exp">${q.exp}</div></div>`;
   }).join('');
 
-  // Mark questions as used
-  if (!AppState.usedQuestions[testState.subject]) AppState.usedQuestions[testState.subject] = [];
-  testState.poolIndices.forEach(idx => {
-    if (!AppState.usedQuestions[testState.subject].includes(idx)) {
-      AppState.usedQuestions[testState.subject].push(idx);
-    }
-  });
+  // Save to history
+  const historyItem = {
+    subject: testState.subject,
+    score: pct,
+    total: testState.questions.length,
+    date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+  };
 
-  AppState.testHistory.unshift({ subject: testState.subject, score: pct, questions: testState.questions.length, date: 'Today' });
-  saveState();
+  API.saveTestResult(historyItem).then(saved => {
+    AppState.testHistory.unshift(saved);
+
+    // Mark questions as used
+    if (!AppState.usedQuestions[testState.subject]) AppState.usedQuestions[testState.subject] = [];
+    testState.poolIndices.forEach(idx => {
+      if (!AppState.usedQuestions[testState.subject].includes(idx)) {
+        AppState.usedQuestions[testState.subject].push(idx);
+      }
+    });
+
+    // Sync with backend
+    API.updateUser({ usedQuestions: AppState.usedQuestions });
+  });
 }
 
 function reviewAnswers() { document.getElementById('results-review-panel').scrollIntoView({ behavior: 'smooth' }); }
@@ -642,30 +696,27 @@ function renderPlanner() {
     </div>`).join('');
 }
 
-function removeSession(day, index) {
+async function removeSession(day, index) {
   if (AppState.plannerSessions[day]) {
+    await API.deletePlannerSession(day, index);
     AppState.plannerSessions[day].splice(index, 1);
-    saveState();
     renderPlanner();
   }
 }
 
 
-function addSession() {
+async function addSession() {
   const s = document.getElementById('add-subject').value.trim() || 'Study Session';
   const d = document.getElementById('add-day').value.slice(0, 3);
   const dur = document.getElementById('add-duration').value;
 
-  if (!subColors[s]) {
-    subColors[s] = customColors[Math.floor(Math.random() * customColors.length)];
-  }
-  const c = subColors[s];
+  const color = customColors[Math.floor(Math.random() * customColors.length)];
 
-  if (!AppState.plannerSessions[d]) AppState.plannerSessions[d] = [];
-  AppState.plannerSessions[d].push({ s: `${s} (${dur}m)`, c });
-  saveState();
+  const updatedPlanner = await API.addPlannerSession(d, { s: `${s} (${dur}m)`, c: color });
+  AppState.plannerSessions[d] = updatedPlanner.sessions;
+
   renderPlanner();
-  document.getElementById('add-subject').value = ''; // clear input
+  document.getElementById('add-subject').value = '';
 }
 
 
@@ -883,15 +934,16 @@ function showTyping() {
   return id;
 }
 
-function sendSuggestion(s) { document.getElementById('chat-input').value = s; sendMessage(); }
+function sendSuggestion(s) { document.getElementById('chat-input').value = s; processMessage(); }
 
-function sendMessage() {
+async function processMessage() {
   const input = document.getElementById('chat-input');
   const txt = input.value.trim();
   if (!txt) return;
 
-  AppState.chatMessages.push({ role: 'user', text: txt, ts: getTimestamp() });
-  saveState();
+  const userMsg = { role: 'user', text: txt, ts: getTimestamp() };
+  await API.saveChatMessage(userMsg);
+  AppState.chatMessages.push(userMsg);
   input.value = '';
   renderMessages();
   input.disabled = true;
@@ -902,7 +954,7 @@ function sendMessage() {
   const lower = txt.toLowerCase();
 
   // Professional Delay (Simulating Reasoning)
-  setTimeout(() => {
+  setTimeout(async () => {
     document.getElementById(typId)?.remove();
 
     let resp = '';
@@ -923,26 +975,29 @@ function sendMessage() {
     else {
       const match = CHAT_KB.find(r => r.tags.some(k => lower.includes(k)));
       if (match) {
-        AppState.chatMessages.push({ role: 'bot', text: match.r, ts: getTimestamp(), followups: match.followups });
-        saveState();
+        const botMsg = { role: 'bot', text: match.r, ts: getTimestamp(), followups: match.followups };
+        await API.saveChatMessage(botMsg);
+        AppState.chatMessages.push(botMsg);
         finishChat();
       } else {
         // 3. Dynamic Knowledge Fetch (Wikipedia API)
-        fetchDynamicAnswer(txt).then(dynamicText => {
-          AppState.chatMessages.push({
+        fetchDynamicAnswer(txt).then(async dynamicText => {
+          const botMsg = {
             role: 'bot',
             text: dynamicText,
             ts: getTimestamp(),
             followups: [`More about that`, "Related Topics", "Quiz me on this"]
-          });
-          saveState();
+          };
+          await API.saveChatMessage(botMsg);
+          AppState.chatMessages.push(botMsg);
           finishChat();
-        }).catch(() => {
+        }).catch(async () => {
           // Fallback if API fails
           let resp = FALLBACK[fallbackIdx++ % FALLBACK.length];
           let followups = ['Explain Newton\'s Laws', 'Study DNA advice', 'Help me with Math'];
-          AppState.chatMessages.push({ role: 'bot', text: resp, ts: getTimestamp(), followups });
-          saveState();
+          const botMsg = { role: 'bot', text: resp, ts: getTimestamp(), followups };
+          await API.saveChatMessage(botMsg);
+          AppState.chatMessages.push(botMsg);
           finishChat();
         });
         return; // Prevent synchronous finishChat
@@ -993,7 +1048,12 @@ async function fetchDynamicAnswer(query) {
 }
 
 
-function clearChat() { chatInit = false; AppState.chatMessages = []; saveState(); renderChat(); }
+async function clearChat() {
+  await API.clearChat();
+  chatInit = false;
+  AppState.chatMessages = [];
+  renderChat();
+}
 
 // ---- SYLLABUS AI ----
 let extractedSyllabus = [];
@@ -1139,7 +1199,8 @@ function renderSyllabusAI() {
   }
 }
 
-function clearSyllabus() {
+async function clearSyllabus() {
+  await API.clearSyllabus();
   extractedSyllabus = [];
   renderSyllabusAI();
 }
@@ -1151,9 +1212,10 @@ function processRealSyllabus() {
   const overlay = document.getElementById('syllabus-processing');
   overlay.classList.remove('hidden');
 
-  setTimeout(() => {
+  setTimeout(async () => {
     overlay.classList.add('hidden');
-    extractedSyllabus = parseSyllabusText(text);
+    const topics = parseSyllabusText(text);
+    extractedSyllabus = await API.saveSyllabusBulk(topics);
     renderSyllabusAI();
   }, 2000);
 }
@@ -1452,21 +1514,32 @@ function closeSettings() {
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('modal-backdrop').classList.add('hidden');
 }
-function saveSettings() {
+async function saveSettings() {
   const name = document.getElementById('settings-name').value || 'Student';
-  AppState.student.name = name;
-  AppState.student.initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  AppState.student.stream = document.getElementById('settings-stream').value;
-  AppState.student.year = document.getElementById('settings-year').value;
-  AppState.student.goal = document.getElementById('settings-goal').value;
+  const stream = document.getElementById('settings-stream').value;
+  const year = document.getElementById('settings-year').value;
+  const goal = document.getElementById('settings-goal').value;
+
+  const updatedUser = await API.updateUser({ name, stream, year, goal });
+
+  AppState.student = {
+    name: updatedUser.name,
+    initials: updatedUser.initials,
+    stream: updatedUser.stream,
+    year: updatedUser.year,
+    goal: updatedUser.goal
+  };
 
   document.getElementById('nav-student-name').textContent = name;
   document.getElementById('nav-avatar').textContent = AppState.student.initials;
   document.getElementById('dash-student-name').textContent = name.split(' ')[0];
-  saveState();
+
   closeSettings();
   renderDashboard();
 }
+
+// Initial Load
+document.addEventListener('DOMContentLoaded', initApp);
 function setTheme(mode) {
   document.body.classList.toggle('light-mode', mode === 'light');
   document.getElementById('theme-dark').classList.toggle('active', mode === 'dark');
