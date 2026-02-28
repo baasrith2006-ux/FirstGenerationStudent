@@ -1,124 +1,87 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
+const showProgress = () => document.getElementById('global-progress')?.classList.remove('hidden');
+const hideProgress = () => document.getElementById('global-progress')?.classList.add('hidden');
+
 const API = {
-    async getUser() {
-        const res = await fetch(`${API_BASE_URL}/user`);
-        return res.json();
+    async call(endpoint, options = {}) {
+        showProgress();
+        try {
+            const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || `API Error: ${res.status}`);
+            }
+            return await res.json();
+        } catch (err) {
+            console.error(`API Call Failed [${endpoint}]:`, err);
+            // Optional: Add toast notification here
+            throw err;
+        } finally {
+            hideProgress();
+        }
     },
+
+    async getUser() { return this.call('/user'); },
     async updateUser(data) {
-        const res = await fetch(`${API_BASE_URL}/user`, {
+        return this.call('/user', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     },
-    async getSubjects() {
-        const res = await fetch(`${API_BASE_URL}/subjects`);
-        return res.json();
-    },
+    async getSubjects() { return this.call('/subjects'); },
     async addSubject(data) {
-        const res = await fetch(`${API_BASE_URL}/subjects`, {
+        return this.call('/subjects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     },
-    async deleteSubject(id) {
-        const res = await fetch(`${API_BASE_URL}/subjects/${id}`, {
-            method: 'DELETE'
-        });
-        return res.json();
-    },
-    async getTasks() {
-        const res = await fetch(`${API_BASE_URL}/tasks`);
-        return res.json();
-    },
+    async deleteSubject(id) { return this.call(`/subjects/${id}`, { method: 'DELETE' }); },
+    async getTasks() { return this.call('/tasks'); },
     async addTask(data) {
-        const res = await fetch(`${API_BASE_URL}/tasks`, {
+        return this.call('/tasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     },
-    async toggleTask(id) {
-        const res = await fetch(`${API_BASE_URL}/tasks/${id}`, {
-            method: 'PATCH'
-        });
-        return res.json();
-    },
-    async deleteTask(id) {
-        const res = await fetch(`${API_BASE_URL}/tasks/${id}`, {
-            method: 'DELETE'
-        });
-        return res.json();
-    },
-    async getPlanner() {
-        const res = await fetch(`${API_BASE_URL}/planner`);
-        return res.json();
-    },
+    async toggleTask(id) { return this.call(`/tasks/${id}/toggle`, { method: 'PATCH' }); },
+    async deleteTask(id) { return this.call(`/tasks/${id}`, { method: 'DELETE' }); },
+    async getPlanner() { return this.call('/planner'); },
     async addPlannerSession(day, data) {
-        const res = await fetch(`${API_BASE_URL}/planner/${day}`, {
+        return this.call(`/planner/${day}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     },
-    async deletePlannerSession(day, index) {
-        const res = await fetch(`${API_BASE_URL}/planner/${day}/${index}`, {
-            method: 'DELETE'
-        });
-        return res.json();
-    },
-    async getChat() {
-        const res = await fetch(`${API_BASE_URL}/chat`);
-        return res.json();
-    },
+    async deletePlannerSession(day, index) { return this.call(`/planner/${day}/${index}`, { method: 'DELETE' }); },
+    async getChat() { return this.call('/chat'); },
     async saveChatMessage(data) {
-        const res = await fetch(`${API_BASE_URL}/chat`, {
+        return this.call('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     },
-    async clearChat() {
-        const res = await fetch(`${API_BASE_URL}/chat`, {
-            method: 'DELETE'
-        });
-        return res.json();
-    },
-    async getSyllabus() {
-        const res = await fetch(`${API_BASE_URL}/syllabus`);
-        return res.json();
-    },
+    async clearChat() { return this.call('/chat', { method: 'DELETE' }); },
+    async getSyllabus() { return this.call('/syllabus'); },
     async saveSyllabusBulk(topics) {
-        const res = await fetch(`${API_BASE_URL}/syllabus/bulk`, {
+        return this.call('/syllabus/bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(topics)
         });
-        return res.json();
     },
-    async clearSyllabus() {
-        const res = await fetch(`${API_BASE_URL}/syllabus`, {
-            method: 'DELETE'
-        });
-        return res.json();
-    },
-    async getTestHistory() {
-        const res = await fetch(`${API_BASE_URL}/test-history`);
-        return res.json();
-    },
+    async clearSyllabus() { return this.call('/syllabus', { method: 'DELETE' }); },
+    async getTestHistory() { return this.call('/test-history'); },
     async saveTestResult(data) {
-        const res = await fetch(`${API_BASE_URL}/test-history`, {
+        return this.call('/test-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        return res.json();
     }
 };

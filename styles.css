@@ -85,6 +85,46 @@
   --font-brand: 'Google Sans', 'Roboto', sans-serif;
   --font-body: 'Roboto', sans-serif;
   --font-mono: 'Roboto Mono', monospace;
+  --font-size-base: 16px;
+}
+
+/* --- GLOBAL PROGRESS BAR --- */
+.progress-bar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: transparent;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.progress-bar-container.hidden {
+  display: none;
+}
+
+.progress-bar-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--primary);
+  transform: translateX(-100%);
+  animation: progress-indet 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes progress-indet {
+  0% {
+    transform: translateX(-100%) scaleX(0.1);
+  }
+
+  50% {
+    transform: translateX(-10%) scaleX(0.5);
+  }
+
+  100% {
+    transform: translateX(100%) scaleX(0.1);
+  }
 }
 
 /* Light mode overrides */

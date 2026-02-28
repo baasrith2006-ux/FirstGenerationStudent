@@ -23,6 +23,9 @@ app.get('/', (req, res) => {
     res.send('PathWise Backend (Supabase) is running');
 });
 
+// Error Handling Middleware
+app.use(require('./middleware/errorMiddleware'));
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

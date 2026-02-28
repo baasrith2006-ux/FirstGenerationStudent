@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        res.json(data);
+        res.json(data.map(item => ({ ...item, _id: item.id })));
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -57,7 +57,7 @@ router.patch('/:id/toggle', async (req, res) => {
             .single();
 
         if (error) throw error;
-        res.json(data);
+        res.json({ ...data, _id: data.id });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
