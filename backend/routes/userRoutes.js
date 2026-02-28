@@ -34,8 +34,12 @@ router.get('/', async (req, res) => {
 });
 
 // Update profile
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
     try {
+        const { userSchema } = require('../utils/validation');
+        const { error: valError } = userSchema.validate(req.body);
+        if (valError) throw new Error(valError.details[0].message);
+
         const { data, error } = await supabase
             .from('users')
             .update({ ...req.body, updated_at: new Date() })

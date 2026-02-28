@@ -15,7 +15,7 @@ const API = {
             return await res.json();
         } catch (err) {
             console.error(`API Call Failed [${endpoint}]:`, err);
-            // Optional: Add toast notification here
+            Toast.error(err.message || 'Connection failed');
             throw err;
         } finally {
             hideProgress();

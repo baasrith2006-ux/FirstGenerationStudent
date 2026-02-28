@@ -22,26 +22,34 @@ let AppState = DEFAULT_STATE;
 
 async function initApp() {
   try {
-    const user = await API.getUser();
-    const subjects = await API.getSubjects();
-    const tasks = await API.getTasks();
-    const planner = await API.getPlanner();
-    const chat = await API.getChat();
-    const syllabus = await API.getSyllabus();
-    const testHistory = await API.getTestHistory();
+    // Show skeletons first
+    showSkeletons('dashboard-task-list', 4);
+    showSkeletons('dna-subjects-grid', 3);
+
+    const [user, subjects, tasks, planner, chats, syllabus, testHistory] = await Promise.all([
+      API.getUser(),
+      API.getSubjects(),
+      API.getTasks(),
+      API.getPlanner(),
+      API.getChat(),
+      API.getSyllabus(),
+      API.getTestHistory()
+    ]);
 
     AppState.student = {
-      name: user.name,
-      initials: user.initials,
-      stream: user.stream,
-      year: user.year,
-      goal: user.goal
+      name: user.name || 'Student Name',
+      initials: user.initials || 'SN',
+      stream: user.stream || 'Not set',
+      year: user.year || 'Not set',
+      goal: user.goal || 'Not set',
+      streak: user.streak || 0,
     };
-    AppState.streak = user.streak;
+    AppState.dnaTraits = user.dnaTraits || [];
+    AppState.dnaProfile = user.dnaProfile || { type: 'Not yet analyzed', description: 'Complete your profile to see your study DNA.' };
     AppState.subjects = subjects;
     AppState.todayTasks = tasks;
-    AppState.plannerSessions = planner;
-    AppState.chatMessages = chat;
+    AppState.planner = planner;
+    AppState.chatHistory = chats;
     AppState.extractedSyllabus = syllabus;
     extractedSyllabus = syllabus;
     AppState.testHistory = testHistory;
@@ -50,15 +58,29 @@ async function initApp() {
     // Initial renders
     initNav();
     renderDashboard();
+    renderStudyDNA();
+    renderPlanner();
+    renderChat();
+    renderSyllabusPreview();
+    renderTestResults();
+    updateAnalytics();
+
+    Toast.info('System connected. Welcome back!');
   } catch (err) {
-    console.error('Failed to initialize app from backend', err);
-    // Fallback or show error
+    console.error('Failed to initialize app:', err);
+    Toast.error('Failed to connect to backend. Please check your connection.');
   }
 }
 
 function initNav() {
   document.getElementById('nav-student-name').textContent = AppState.student.name;
   document.getElementById('nav-avatar').textContent = AppState.student.initials;
+}
+
+function showSkeletons(containerId, count = 3) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = Array(count).fill('<div class="loading-skeleton skeleton-card"></div>').join('');
 }
 
 function saveState() {
@@ -82,9 +104,8 @@ async function addTask() {
   const newTask = await API.addTask({ name, subject: sub, duration: dur });
   AppState.todayTasks.push(newTask);
 
-  document.getElementById('new-task-name').value = '';
-  document.getElementById('new-task-subject').value = '';
   document.getElementById('new-task-duration').value = '';
+  Toast.success('Task added successfully!');
   renderDashboard();
 }
 
@@ -101,9 +122,10 @@ async function addSubject() {
   const colorsList = ['#6C63FF', '#43D9B6', '#FFB347', '#FF6584', '#9b59b6', '#e67e22', '#1abc9c', '#e74c3c'];
   const color = colorsList[Math.floor(Math.random() * colorsList.length)];
 
-  const newSub = await API.addSubject({ name, icon, mastery: 0, hours: 0, color });
+  const newSub = await API.addSubject({ name, icon });
   AppState.subjects.push(newSub);
-  renderDashboard();
+  Toast.success(`Subject "${name}" created!`);
+  renderStudyDNA();
 }
 
 async function removeSubject(id) {
