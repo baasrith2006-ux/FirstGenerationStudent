@@ -21,8 +21,12 @@ router.get('/', async (req, res) => {
 });
 
 // Add subject
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
     try {
+        const { subjectSchema } = require('../utils/validation');
+        const { error: valError } = subjectSchema.validate(req.body);
+        if (valError) throw new Error(valError.details[0].message);
+
         const { data, error } = await supabase
             .from('subjects')
             .insert([{ ...req.body, user_id: MOCK_USER_ID }])
