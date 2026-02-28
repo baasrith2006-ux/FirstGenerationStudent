@@ -1,15 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const TestHistory = require('../models/TestHistory');
-const User = require('../models/User');
+const supabase = require('../supabase');
+
+const MOCK_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 // Get test history
 router.get('/', async (req, res) => {
     try {
-        const user = await User.findOne();
-        if (!user) return res.json([]);
-        const history = await TestHistory.find({ userId: user._id }).sort({ date: -1 });
-        res.json(history);
+        const { data, error } = await supabase
+            .from('test_history')
+            .select('*')
+            .eq('user_id', MOCK_USER_ID)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json(data.map(item => ({ ...item, _id: item.id })));
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -18,13 +23,14 @@ router.get('/', async (req, res) => {
 // Save test result
 router.post('/', async (req, res) => {
     try {
-        const user = await User.findOne() || await new User().save();
-        const test = new TestHistory({
-            ...req.body,
-            userId: user._id
-        });
-        const saved = await test.save();
-        res.status(201).json(saved);
+        const { data, error } = await supabase
+            .from('test_history')
+            .insert([{ ...req.body, user_id: MOCK_USER_ID }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.status(201).json({ ...data, _id: data.id });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

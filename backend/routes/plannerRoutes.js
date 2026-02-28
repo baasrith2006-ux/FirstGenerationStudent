@@ -1,57 +1,59 @@
 const express = require('express');
 const router = express.Router();
-const Planner = require('../models/Planner');
-const User = require('../models/User');
+const supabase = require('../supabase');
 
-// Get weekly planner
+const MOCK_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+// Get planner sessions
 router.get('/', async (req, res) => {
     try {
-        const user = await User.findOne();
-        if (!user) return res.json({});
-        const plannerItems = await Planner.find({ userId: user._id });
+        const { data, error } = await supabase
+            .from('planner_sessions')
+            .select('*')
+            .eq('user_id', MOCK_USER_ID);
 
-        // Structure it like the frontend's plannerSessions
-        const sessions = { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: [] };
-        plannerItems.forEach(item => {
-            sessions[item.day] = item.sessions;
+        if (error) throw error;
+
+        // Group by day for the frontend
+        const sessions = {
+            Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [], Sun: []
+        };
+        data.forEach(s => {
+            if (sessions[s.day]) sessions[s.day].push({ ...s, _id: s.id });
         });
+
         res.json(sessions);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// Add/Update session for a day
-router.post('/:day', async (req, res) => {
+// Add session
+router.post('/', async (req, res) => {
     try {
-        const { day } = req.params;
-        const user = await User.findOne() || await new User().save();
+        const { data, error } = await supabase
+            .from('planner_sessions')
+            .insert([{ ...req.body, user_id: MOCK_USER_ID }])
+            .select()
+            .single();
 
-        let planner = await Planner.findOne({ userId: user._id, day });
-        if (!planner) {
-            planner = new Planner({ userId: user._id, day, sessions: [] });
-        }
-
-        planner.sessions.push(req.body);
-        await planner.save();
-        res.status(201).json(planner);
+        if (error) throw error;
+        res.status(201).json({ ...data, _id: data.id });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
 
 // Remove session
-router.delete('/:day/:index', async (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
-        const { day, index } = req.params;
-        const user = await User.findOne();
-        if (!user) return res.status(404).json({ message: 'User not found' });
+        const { error } = await supabase
+            .from('planner_sessions')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('user_id', MOCK_USER_ID);
 
-        const planner = await Planner.findOne({ userId: user._id, day });
-        if (planner) {
-            planner.sessions.splice(index, 1);
-            await planner.save();
-        }
+        if (error) throw error;
         res.json({ message: 'Session removed' });
     } catch (err) {
         res.status(500).json({ message: err.message });
