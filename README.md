@@ -28,7 +28,6 @@ PathWise is a professional, high-performance learning companion built to MNC sta
 
 ### Prerequisites
 - Node.js v20+
-- Docker (Optional for containerized run)
 - Supabase Project
 
 ### Environment Setup
@@ -48,12 +47,6 @@ npm install
 
 # Run the project
 npm run start
-```
-
-## 🐋 Docker Support
-Run the entire stack with a single command:
-```bash
-docker-compose up -d
 ```
 
 ## 📜 License
